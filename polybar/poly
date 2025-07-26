@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+CARD="$(ls -1 /sys/class/backlight/)"
+NETWORK="$(ip link | awk '/state UP/ {print $2}' | tr -d :)"
+BATT="$(ls -1 /sys/class/power_supply/)"
+
+
+# Fix backlight and network modules
+cat << EOF >> system.ini
+[system]
+sys_adapter = 
+sys_battery = 
+sys_graphics_card = $CARD 
+sys_network_interface = $NETWORK
+EOF
