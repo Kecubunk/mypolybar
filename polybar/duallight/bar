@@ -1,12 +1,70 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+FILE_NAME="system.ini"
+CARD="$(ls -1 /sys/class/backlight/)"
+NETWORK="$(ip link | awk '/state UP/ {print $2}' | tr -d :)"
+BATT="$(ls -1 /sys/class/power_supply/)"
+ADAPTER=""
+BATTERY=""
 
+for entry in /sys/class/power_supply/*; do
+    # Ambil nama dasar dari entri (misal: AC0, BAT0)
+    name=$(basename "$entry")
+    # Periksa tipe power supply
+    if [[ "$name" == AC* ]]; then
+        ac_adapters+=("$name")
+         ADAPTER=$ac_adapters
+    elif [[ "$name" == BAT* ]]; then
+        batteries+=("$name")
+         BATTERY=$batteries
+    else
+        # Masukkan tipe lain yang tidak teridentifikasi ke kategori 'lain-lain'
+        other_power_supplies+=("$name")
+    fi
+done
+
+if [ -f "$FILE_NAME" ]; then
+    #echo "File '$FILE_NAME' ditemukan. Menghapus file..."
+    rm "$FILE_NAME"
+    if [ $? -eq 0 ]; then
+        #echo "File '$FILE_NAME' berhasil dihapus."
+        touch "$FILE_NAME"
+
+# Fix backlight and network modules
+cat << EOF >> system.ini
+[system]
+sys_adapter = $ADAPTER
+sys_battery = $BATTERY
+sys_graphics_card = $CARD 
+sys_network_interface = $NETWORK
+EOF
+        
+    else
+        echo ""
+    fi
+else
+    #echo "File '$FILE_NAME' tidak ditemukan. Membuat file..."
+    touch "$FILE_NAME"
+    if [ $? -eq 0 ]; then
+        #echo "File '$FILE_NAME' berhasil dibuat."
+# Fix backlight and network modules
+cat << EOF >> system.ini
+[system]
+sys_adapter = $ADAPTER
+sys_battery = $BATTERY
+sys_graphics_card = $CARD 
+sys_network_interface = $NETWORK
+EOF
+    else
+        echo ""
+    fi
+fi
 
 
 
 # Launch the bar
-launch_bar() {
+bar() {
 	killall -q polybar
 
 	# Wait until the processes have been shut down
@@ -20,4 +78,4 @@ launch_bar() {
 }
 
 
-launch_bar
+bar

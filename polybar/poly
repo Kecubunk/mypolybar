@@ -1,16 +1,65 @@
 #!/usr/bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-CARD="$(ls -1 /sys/class/backlight/)"
-NETWORK="$(ip link | awk '/state UP/ {print $2}' | tr -d :)"
-BATT="$(ls -1 /sys/class/power_supply/)"
+
+## Konfigurasi Direktori Utama
+TARGET_BASE_DIR="$DIR"
+echo "+++++++++++++++++++++++++++++++++++++++++++"
+echo "###          Polybar Themes             ###"
+echo "+++++++++++++++++++++++++++++++++++++++++++"
+
+# Memeriksa apakah direktori target ada
+if [ ! -d "$TARGET_BASE_DIR" ]; then
+    echo "Kesalahan: Direktori target '$TARGET_BASE_DIR' tidak ditemukan."
+    echo "Pastikan direktori yang Anda tentukan sudah ada."
+    echo "---"
+    exit 1
+fi
+
+# Mendapatkan daftar sub-direktori
+# Menggunakan find untuk menangani nama direktori dengan spasi atau karakter khusus
+DIRECTORIES=()
+while IFS= read -r -d $'\0' dir; do
+    # Hanya tambahkan direktori, bukan file atau link simbolik ke file
+    # Menggunakan basename untuk mendapatkan hanya nama direktori, bukan path penuh
+    dir_name=$(basename "$dir")
+    # Lewati '.' dan '..'
+    if [[ "$dir_name" != "." && "$dir_name" != ".." ]]; then
+        DIRECTORIES+=("$dir_name")
+    fi
+done < <(find "$TARGET_BASE_DIR" -maxdepth 1 -type d -print0)
+
+# Mengurutkan daftar direktori secara alfabetis
+IFS=$'\n' sorted_directories=($(sort <<<"${DIRECTORIES[*]}"))
+unset IFS
+DIRECTORIES=("${sorted_directories[@]}")
 
 
-# Fix backlight and network modules
-cat << EOF >> system.ini
-[system]
-sys_adapter = 
-sys_battery = 
-sys_graphics_card = $CARD 
-sys_network_interface = $NETWORK
-EOF
+# Cek apakah ada direktori yang ditemukan
+if [ ${#DIRECTORIES[@]} -eq 0 ]; then
+    echo "Tidak ada sub-direktori yang ditemukan di '$TARGET_BASE_DIR'."
+    echo "---"
+    exit 0
+fi
+
+# Tampilkan menu pilihan
+PS3="Pilih Tema yang akan dipergunakan (atau 'q' untuk keluar): "
+select selected_dir_name in "${DIRECTORIES[@]}"; do
+    if [[ "$REPLY" == "q" ]]; then
+        echo "Keluar dari menu."
+        break
+    elif [[ -n "$selected_dir_name" ]]; then
+        FULL_PATH_DIR="$TARGET_BASE_DIR/$selected_dir_name"
+        echo "---"
+        echo "Anda memilih Tema: '$selected_dir_name'"
+        exec $FULL_PATH_DIR/bar &
+        echo "---"
+        echo "Tekan Enter untuk melanjutkan..."
+        read -r dummy # Tunggu user menekan Enter sebelum menampilkan menu lagi
+    else
+        echo "Pilihan tidak valid. Silakan masukkan nomor yang benar atau 'q' untuk keluar."
+    fi
+done
+
+echo "Program selesai."
+echo "Program selesai."
